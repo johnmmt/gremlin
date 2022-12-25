@@ -1,62 +1,70 @@
 import sys
 import numpy as np
-from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QLineEdit, QVBoxLayout, QHBoxLayout, QPushButton, QGraphicsView, QGraphicsScene
+from PyQt5.QtWidgets import QVBoxLayout, QApplication, QWidget, QGridLayout, QLineEdit, QPushButton, QLabel
 from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QPen, QBrush
-import matplotlib.pyplot as plt
 
-class GraphingCalculator(QWidget):
+class Calculator(QWidget):
     def __init__(self):
         super().__init__()
 
-        # Create the input fields for the equation and range
-        equation_label = QLabel("Equation:")
-        self.equation_field = QLineEdit()
-        range_label = QLabel("Range:")
-        self.range_field = QLineEdit()
+        # Create the display and the buttons
+        self.display = QLineEdit()
+        self.display.setReadOnly(True)
+        self.display.setAlignment(Qt.AlignRight)
+        self.display.setMaxLength(15)
 
-        # Create the "Graph" button and connect it to the graph_button_clicked method
-        graph_button = QPushButton("Graph")
-        graph_button.clicked.connect(self.graph_button_clicked)
+        num_buttons = [
+            '7', '8', '9', '/',
+            '4', '5', '6', '*',
+            '1', '2', '3', '-',
+            '0', '.', '=', '+'
+        ]
 
-        # Use a horizontal layout to arrange the input fields and button
-        input_layout = QHBoxLayout()
-        input_layout.addWidget(equation_label)
-        input_layout.addWidget(self.equation_field)
-        input_layout.addWidget(range_label)
-        input_layout.addWidget(self.range_field)
-        input_layout.addWidget(graph_button)
+        # Create a grid layout to hold the buttons
+        grid = QGridLayout()
+        grid.setSpacing(10)
 
-        # Create a graphics view widget to display the graph
-        self.graphics_view = QGraphicsView(self)
+        # Add the buttons to the grid
+        row = 1
+        col = 0
+        for button in num_buttons:
+            btn = QPushButton(button)
+            btn.setFixedSize(40, 40)
+            btn.clicked.connect(self.num_button_clicked)
+            grid.addWidget(btn, row, col)
+            col += 1
+            if col > 3:
+                col = 0
+                row += 1
 
-        # Use a vertical layout to arrange the input layout and graphics view
+        # Add the display and the grid to the main layout
         main_layout = QVBoxLayout()
-        main_layout.addLayout(input_layout)
-        main_layout.addWidget(self.graphics_view)
+        main_layout.addWidget(self.display)
+        main_layout.addLayout(grid)
         self.setLayout(main_layout)
 
-    def graph_button_clicked(self):
-        # Get the equation and range from the input fields
-        equation = self.equation_field.text()
-        x_range = self.range_field.text()
+        # Set the window title
+        self.setWindowTitle("Calculator")
 
-        # Use NumPy's linspace function to generate an array of x-values over the specified range
-        x_values = np.linspace(float(x_range.split(",")[0]), float(x_range.split(",")[1]), 100)
+    def num_button_clicked(self):
+        # Get the clicked button's text
+        button = self.sender()
+        num = button.text()
 
-        # Use NumPy's eval function to evaluate the equation for each x-value and generate an array of y-values
-        y_values = np.eval(equation, {'x': x_values})
+        # If the user clicked the "=" button, evaluate the expression and display the result
+        if num == "=":
+            result = str(eval(self.display.text()))
+            self.display.setText(result)
+        # If the user clicked the "." button, only add it if it is not already in the display
+        elif num == ".":
+            if "." not in self.display.text():
+                self.display.setText(self.display.text() + num)
+        # Otherwise, just append the clicked number to the display
+        else:
+            self.display.setText(self.display.text() + num)
 
-        # Create a figure and axis using Matplotlib
-        figure, axis = plt.subplots()
-
-        # Plot the x and y values on the axis
-        axis.plot(x_values, y_values)
-
-        # Clear the graphics view's scene and set it to the Matplotlib figure
-        self.graphics_view.setScene(QGraphicsScene())
-        self.graphics_view.setScene(MatplotlibFigureToGraphicsScene(figure))
-
-# Convert a Matplotlib figure to a QGraphicsScene
-def MatplotlibFigureToGraphicsScene(figure):
-    # Create a QGraphicsScene and add the figure to it
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    calculator = Calculator()
+    calculator.show()
+    sys.exit(app.exec_())
