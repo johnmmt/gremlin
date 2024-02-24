@@ -1,70 +1,55 @@
-import sys
-import numpy as np
-from PyQt5.QtWidgets import QVBoxLayout, QApplication, QWidget, QGridLayout, QLineEdit, QPushButton, QLabel
-from PyQt5.QtCore import Qt
+import tkinter as tk
+from tkinter import messagebox
+import scapy.all as scapy
 
-class Calculator(QWidget):
-    def __init__(self):
-        super().__init__()
+def scan(ip):
+    arp_request = scapy.ARP(pdst=ip)
+    broadcast = scapy.Ether(dst="ff:ff:ff:ff:ff:ff")
+    arp_request_broadcast = broadcast/arp_request
+    answered_list = scapy.srp(arp_request_broadcast, timeout=1, verbose=False)[0]
+    
+    clients_list = []
+    for element in answered_list:
+        client_dict = {"ip": element[1].psrc, "mac": element[1].hwsrc}
+        clients_list.append(client_dict)
+    return clients_list
 
-        # Create the display and the buttons
-        self.display = QLineEdit()
-        self.display.setReadOnly(True)
-        self.display.setAlignment(Qt.AlignRight)
-        self.display.setMaxLength(15)
+def print_result(results_list):
+    if results_list:
+        result_str = "IP Address\t\tMAC Address\n"
+        result_str += "----------------------------------------------------\n"
+        for client in results_list:
+            result_str += f"{client['ip']}\t\t{client['mac']}\n"
+        result_text.config(state=tk.NORMAL)
+        result_text.delete('1.0', tk.END)
+        result_text.insert(tk.END, result_str)
+        result_text.config(state=tk.DISABLED)
+    else:
+        messagebox.showinfo("No Result", "No devices found in the LAN.")
 
-        num_buttons = [
-            '7', '8', '9', '/',
-            '4', '5', '6', '*',
-            '1', '2', '3', '-',
-            '0', '.', '=', '+'
-        ]
+def start_scan():
+    ip_prefix = '.'.join(ip_entry.get().split('.')[:-1]) + '.'
+    if ip_prefix:
+        scan_result = scan(ip_prefix + '1/24')
+        print_result(scan_result)
+    else:
+        messagebox.showerror("Error", "Please enter an IP address range.")
 
-        # Create a grid layout to hold the buttons
-        grid = QGridLayout()
-        grid.setSpacing(10)
+# Create GUI
+window = tk.Tk()
+window.title("Network Scanner")
 
-        # Add the buttons to the grid
-        row = 1
-        col = 0
-        for button in num_buttons:
-            btn = QPushButton(button)
-            btn.setFixedSize(40, 40)
-            btn.clicked.connect(self.num_button_clicked)
-            grid.addWidget(btn, row, col)
-            col += 1
-            if col > 3:
-                col = 0
-                row += 1
+# IP Entry
+tk.Label(window, text="Enter IP Range Prefix:").pack()
+ip_entry = tk.Entry(window, width=40)
+ip_entry.pack()
 
-        # Add the display and the grid to the main layout
-        main_layout = QVBoxLayout()
-        main_layout.addWidget(self.display)
-        main_layout.addLayout(grid)
-        self.setLayout(main_layout)
+# Scan Button
+scan_button = tk.Button(window, text="Scan", command=start_scan)
+scan_button.pack()
 
-        # Set the window title
-        self.setWindowTitle("Calculator")
+# Result Text
+result_text = tk.Text(window, height=15, width=50)
+result_text.pack()
 
-    def num_button_clicked(self):
-        # Get the clicked button's text
-        button = self.sender()
-        num = button.text()
-
-        # If the user clicked the "=" button, evaluate the expression and display the result
-        if num == "=":
-            result = str(eval(self.display.text()))
-            self.display.setText(result)
-        # If the user clicked the "." button, only add it if it is not already in the display
-        elif num == ".":
-            if "." not in self.display.text():
-                self.display.setText(self.display.text() + num)
-        # Otherwise, just append the clicked number to the display
-        else:
-            self.display.setText(self.display.text() + num)
-
-if __name__ == '__main__':
-    app = QApplication(sys.argv)
-    calculator = Calculator()
-    calculator.show()
-    sys.exit(app.exec_())
+window.mainloop()
